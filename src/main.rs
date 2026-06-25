@@ -19,8 +19,11 @@ use embassy_time::{Duration, Timer};
 use esphub as lib;
 //Esp
 use esp_backtrace as _;
-use esp_hal::{clock::CpuClock, rng::Rng, timer::timg::TimerGroup};
-
+use esp_hal::{
+    clock::CpuClock,
+    gpio::{Level, Output, OutputConfig},
+    rng::Rng,
+};
 extern crate alloc;
 
 #[esp_rtos::main]
@@ -28,14 +31,15 @@ async fn main(spawner: Spawner) -> ! {
     //init configs
     let cl_conf = esp_hal::Config::default().with_cpu_clock(CpuClock::_80MHz);
     let peripherals = esp_hal::init(cl_conf);
-    esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 64 * 1024);
-    let timg0 = TimerGroup::new(peripherals.TIMG0);
-    let sw_int =
-        esp_hal::interrupt::software::SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
-    esp_rtos::start(timg0.timer0, sw_int.software_interrupt0);
+    lib::util::start_rtos(peripherals.SW_INTERRUPT, peripherals.TIMG0);
     let rng = Rng::new();
-    let stack = lib::gateway::start_wifi(peripherals.WIFI, rng, &spawner).await;
-    spawner.spawn(lib::web::handle_requests(stack).expect("Wifi stack handling task error"));
+    //
+    let (stack, espnow) = lib::gateway::start_wifi(peripherals.WIFI, rng, &spawner).await;
+
+    let led = Output::new(peripherals.GPIO0, Level::Low, OutputConfig::default());
+    let board = lib::util::Board { led, espnow };
+
+    spawner.spawn(lib::web::handle_requests(stack, board).unwrap());
     loop {
         Timer::after(Duration::from_secs(1)).await;
     }

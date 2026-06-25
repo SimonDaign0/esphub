@@ -6,11 +6,16 @@ use esp_println::{self as _, println};
 const INDEX_HTML: &str = include_str!(concat!(env!("OUT_DIR"), "/generated_html.html"));
 
 #[embassy_executor::task]
-pub async fn handle_requests(stack: Stack<'static>) {
+pub async fn handle_requests(stack: Stack<'static>, board: crate::util::Board) {
     #[allow(non_snake_case)]
     let PORT = option_env!("PORT")
         .and_then(|s| s.parse::<u16>().ok())
         .unwrap_or(8080);
+
+    let mut led = board.led;
+    let mut espnow = board.espnow;
+    espnow.set_channel(2).unwrap();
+
     let mut rx_buffer = [0_u8; 1536];
     let mut tx_buffer = [0_u8; 1536];
 
@@ -39,7 +44,7 @@ pub async fn handle_requests(stack: Stack<'static>) {
                             Err(e) => println!("socket approval err: {:?}", e),
                             Ok(()) => {
                                 println!("SOCKET APPROVED!");
-                                crate::routing::read_ws(&mut socket).await;
+                                crate::routing::handle_ws(&mut socket, &mut led, &mut espnow).await;
                                 break;
                             }
                         }

@@ -1,12 +1,8 @@
-use std::fs;
-use std::path::Path;
 fn main() {
     linker_be_nice();
     println!("cargo:rustc-link-arg=-Tdefmt.x");
     // make sure linkall.x is the last linker script (otherwise might cause problems with flip-link)
     println!("cargo:rustc-link-arg=-Tlinkall.x");
-    //Generate the web pages
-    generate_pages();
 }
 
 fn linker_be_nice() {
@@ -69,26 +65,7 @@ fn linker_be_nice() {
     }
 
     println!(
-        "cargo:rustc-link-arg=--error-handling-script={}",
+        "cargo:rustc-link-arg=-Wl,--error-handling-script={}",
         std::env::current_exe().unwrap().display()
     );
-}
-const HTTP_HEADER: &str = "HTTP/1.0 200 OK\r\n\r\n";
-fn generate_pages() {
-    let html = include_str!("src/pages/index.html");
-    let css = include_str!("src/pages/index.css");
-    let js = include_str!("src/pages/index.js");
-    let mut merged = String::from(HTTP_HEADER);
-    merged.push_str(
-        html.replace("/*CSS_PLACEHOLDER*/", css)
-            .replace("/*JS_PLACEHOLDER*/", js)
-            .as_str(),
-    );
-
-    let out_dir = std::env::var("OUT_DIR").expect("Missing builds.rs");
-    let cur_dir = std::env::current_dir().expect("Cur dir error");
-    let other_path = Path::new(&cur_dir).join("src/pages/generated_html.html");
-    let dest_path = Path::new(&out_dir).join("generated_html.html");
-    fs::write(&dest_path, &merged).expect("Error generating html");
-    fs::write(other_path, merged).expect("Error generating html in pages");
 }

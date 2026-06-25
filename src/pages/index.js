@@ -13,5 +13,5 @@ const send_button = document.getElementById("send-ws");
 send_button.addEventListener("click", () => send());
 
 function send() {
-    ws.send("My custom msg over websocket!");
+    ws.send("TOGGLE: My custom msg over websocket!");
 }

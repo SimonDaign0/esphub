@@ -7,7 +7,10 @@ use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
 use esp_hal::{peripherals::WIFI, rng::Rng};
 use esp_println::{self as _, println};
-use esp_radio::wifi::{Config, ControllerConfig, Interface, WifiController, ap::AccessPointConfig};
+use esp_radio::esp_now::EspNow;
+use esp_radio::wifi::{
+    Config, ControllerConfig, Interface, WifiController, ap::AccessPointConfig, sta::StationConfig,
+};
 //custom
 use crate::mk_static;
 
@@ -76,7 +79,11 @@ pub async fn net_task(mut runner: Runner<'static, Interface<'static>>) {
     runner.run().await
 }
 
-pub async fn start_wifi(periferal: WIFI<'static>, rng: Rng, spawner: &Spawner) -> Stack<'static> {
+pub async fn start_wifi(
+    periferal: WIFI<'static>,
+    rng: Rng,
+    spawner: &Spawner,
+) -> (Stack<'static>, EspNow<'static>) {
     #[allow(non_snake_case)]
     let SSID: &str = option_env!("HOSTNAME").unwrap_or("Esphub");
     #[allow(non_snake_case)]
@@ -85,21 +92,23 @@ pub async fn start_wifi(periferal: WIFI<'static>, rng: Rng, spawner: &Spawner) -
     let PORT = option_env!("PORT")
         .and_then(|s| s.parse::<u16>().ok())
         .unwrap_or(8080);
-    let ip_gateway = option_env!("GW_ADDR")
+    let ip_gateway = option_env!("GATEWAY")
         .and_then(|s| s.parse::<Ipv4Addr>().ok())
         .unwrap_or(Ipv4Addr::new(10, 0, 2, 1));
-    let ap_conf = Config::AccessPoint(
+    let ap_sta_conf = Config::AccessPointStation(
+        StationConfig::default().with_channel(2),
         AccessPointConfig::default()
             .with_ssid(SSID)
             .with_password(PASSWORD.into())
-            .with_auth_method(esp_radio::wifi::AuthenticationMethod::Wpa2Personal),
+            .with_auth_method(esp_radio::wifi::AuthenticationMethod::Wpa2Personal)
+            .with_channel(1),
     );
 
     let (wifi_ctl, wifi_if) = esp_radio::wifi::new(
         periferal,
-        ControllerConfig::default().with_initial_config(ap_conf),
+        ControllerConfig::default().with_initial_config(ap_sta_conf),
     )
-    .expect("Failed to initialize Wi-Fi controller");
+    .unwrap();
     // Gateway
     //
     let ap_device = wifi_if.access_point;
@@ -117,10 +126,11 @@ pub async fn start_wifi(periferal: WIFI<'static>, rng: Rng, spawner: &Spawner) -
         seed,
     );
     //spawn tasks
-    spawner.spawn(connection_log(wifi_ctl).expect("Connection task spawning error"));
-    spawner.spawn(net_task(runner).expect("Net task runner error"));
-    spawner.spawn(run_dhcp(stack, ip_gateway).expect("DHCP task error"));
+    spawner.spawn(connection_log(wifi_ctl).unwrap());
+    spawner.spawn(net_task(runner).unwrap());
+    spawner.spawn(run_dhcp(stack, ip_gateway).unwrap());
     stack.wait_config_up().await;
     println!("Ip gateway: http://{}:{}", ip_gateway, PORT);
-    stack
+    let espnow = wifi_if.esp_now;
+    (stack, espnow)
 }
