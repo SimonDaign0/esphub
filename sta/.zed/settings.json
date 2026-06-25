@@ -1,0 +1,21 @@
+{
+    "lsp": {
+        "rust-analyzer": {
+            "initialization_options": {
+                "cargo": {
+                    // Replace with your specific target (e.g., "xtensa-esp32s3-none-elf" or "xtensa-esp32-none-elf")
+                    "target": "xtensa-esp32s3-none-elf",
+                    "buildScripts": {
+                        "enable": true,
+                    },
+                },
+                "check": {
+                    "command": "clippy",
+                },
+                "diagnostics": {
+                    "disabled": ["unresolved-proc-macro"],
+                },
+            },
+        },
+    },
+}
