@@ -39,7 +39,7 @@ async fn main(spawner: Spawner) -> ! {
     let led = Output::new(peripherals.GPIO0, Level::Low, OutputConfig::default());
     let board = lib::util::Board { led, espnow };
 
-    spawner.spawn(lib::web::handle_requests(stack, board).unwrap());
+    spawner.spawn(lib::gateway::handle_requests(stack, board).unwrap());
     loop {
         Timer::after(Duration::from_secs(1)).await;
     }

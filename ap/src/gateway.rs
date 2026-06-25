@@ -1,8 +1,10 @@
 use core::net::Ipv4Addr;
 //Embassy
 use embassy_executor::Spawner;
+use embassy_net::{IpListenEndpoint, tcp::TcpSocket};
 use embassy_net::{Ipv4Cidr, Runner, Stack, StackResources, StaticConfigV4};
 use embassy_time::{Duration, Timer};
+use embedded_io_async::Write;
 //Esp
 use esp_backtrace as _;
 use esp_hal::{peripherals::WIFI, rng::Rng};
@@ -12,7 +14,10 @@ use esp_radio::wifi::{
     Config, ControllerConfig, Interface, WifiController, ap::AccessPointConfig, sta::StationConfig,
 };
 //custom
-use crate::mk_static;
+use crate::{
+    mk_static,
+    networking::{HttpMethod, RequestType},
+};
 
 #[embassy_executor::task]
 pub async fn run_dhcp(stack: Stack<'static>, gw_ip_addr: Ipv4Addr) {
@@ -133,4 +138,72 @@ pub async fn start_wifi(
     println!("Ip gateway: http://{}:{}", ip_gateway, PORT);
     let espnow = wifi_if.esp_now;
     (stack, espnow)
+}
+const INDEX_HTML: &str = include_str!(concat!(env!("OUT_DIR"), "/generated_index.html"));
+#[embassy_executor::task]
+pub async fn handle_requests(stack: Stack<'static>, board: crate::util::Board) {
+    #[allow(non_snake_case)]
+    let PORT = option_env!("PORT")
+        .and_then(|s| s.parse::<u16>().ok())
+        .unwrap_or(8080);
+
+    let mut led = board.led;
+    let mut espnow = board.espnow;
+    espnow.set_channel(2).unwrap();
+
+    let mut rx_buffer = [0_u8; 1536];
+    let mut tx_buffer = [0_u8; 1536];
+
+    let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
+    socket.set_timeout(Some(embassy_time::Duration::from_secs(30)));
+    loop {
+        let r = socket
+            .accept(IpListenEndpoint {
+                addr: None,
+                port: PORT,
+            })
+            .await;
+        if let Err(e) = r {
+            println!("Connect error: {:?}", e);
+            continue;
+        }
+        loop {
+            match crate::networking::read_socket(&mut socket).await {
+                Err(e) => {
+                    println!("[ERROR] {:?}", e);
+                    break;
+                }
+                Ok(method) => match method {
+                    RequestType::Upgrade(key) => {
+                        match crate::networking::approve_web_socket(&mut socket, key).await {
+                            Err(e) => println!("socket approval err: {:?}", e),
+                            Ok(()) => {
+                                println!("SOCKET APPROVED!");
+                                crate::networking::handle_ws(&mut socket, &mut led, &mut espnow)
+                                    .await;
+                                break;
+                            }
+                        }
+                    }
+                    RequestType::Standard(HttpMethod::Get) => {
+                        let r = socket.write_all(INDEX_HTML.as_bytes()).await;
+                        if let Err(e) = r {
+                            println!("write error: {:?}", e);
+                            let r = socket.flush().await;
+                            if let Err(e) = r {
+                                println!("flush error: {:?}", e);
+                            }
+                        }
+                        break;
+                    }
+                    other => {
+                        println!("unmapped request: {:?}", other);
+                    }
+                },
+            };
+        }
+        socket.close();
+        Timer::after(Duration::from_millis(500)).await;
+        socket.abort();
+    }
 }

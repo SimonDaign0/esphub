@@ -87,8 +87,8 @@ fn generate_pages() {
 
     let out_dir = std::env::var("OUT_DIR").expect("Missing builds.rs");
     let cur_dir = std::env::current_dir().expect("Cur dir error");
-    let other_path = Path::new(&cur_dir).join("src/pages/generated_html.html");
-    let dest_path = Path::new(&out_dir).join("generated_html.html");
-    fs::write(&dest_path, &merged).expect("Error generating html");
-    fs::write(other_path, merged).expect("Error generating html in pages");
+    let other_path = Path::new(&cur_dir).join("src/pages/generated_index.html");
+    let dest_path = Path::new(&out_dir).join("generated_index.html");
+    fs::write(&dest_path, &merged).expect("Error generating index");
+    fs::write(other_path, merged).expect("Error generating index in pages dir");
 }
