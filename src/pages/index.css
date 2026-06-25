@@ -1,13 +1,20 @@
 h1 {
     color: red;
 }
+#rec_button {
+    color: red;
+}
 main {
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
 }
+#serv_stat {
+    font-size: 45px;
+}
 button {
     width: 400px;
-    height: 200px;
+    height: 100px;
+    font-size: 30px;
 }

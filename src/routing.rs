@@ -138,9 +138,7 @@ pub async fn handle_ws(
     let mut buf = [0u8; 1024];
     loop {
         match socket.read(&mut buf).await {
-            //EOF or closed
             Ok(0) => {
-                println!("socket closed");
                 break;
             }
             Ok(len) => {
@@ -155,9 +153,9 @@ pub async fn handle_ws(
                     println!("TOGGLING LED");
                     led.toggle();
                     let buf: [u8; 6] = [b'T', b'O', b'G', b'G', b'L', b'E'];
-                    match espnow.send(&BROADCAST_ADDRESS, &buf) {
+                    match espnow.send_async(&BROADCAST_ADDRESS, &buf).await {
                         Err(e) => println!("ESPNOW ERROR: {}", e),
-                        Ok(_) => {}
+                        Ok(()) => {}
                     }
                 }
                 println!("{}", content);
@@ -178,6 +176,12 @@ const M_PAYLOAD_START: usize = 8;
 const L_PAYLOAD_START: usize = 14;
 fn decode_payload(buf: &mut [u8; 1024], len: usize) -> Result<&str, NetworkingError> {
     if len <= S_PAYLOAD_START {
+        let op_code = buf[0] & 0x0F;
+        if op_code == 0b1000 {
+            return Err(NetworkingError::ReadError(
+                embassy_net::tcp::Error::ConnectionReset,
+            ));
+        }
         return Err(NetworkingError::InvalidPacketFormat);
     }
     let payload_start = match buf[1] & 0x7F {
