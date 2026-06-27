@@ -63,14 +63,8 @@ async fn main(spawner: Spawner) -> ! {
 #[embassy_executor::task]
 async fn esp_listener(mut espnow: esp_radio::esp_now::EspNow<'static>, mut led: Output<'static>) {
     loop {
-        let packet = espnow.receive_async().await;
-        let s = core::str::from_utf8(&packet.data()).unwrap_or("Invalid UTF8");
-        if s.starts_with("TOGGLE") {
-            println!("recieved a toggle packet");
-            led.toggle();
-        } else {
-            println!("invalid packet");
-        }
+        //Depricated: Will be replaced for esp32c3
+        //let packet = espnow.receive_async().await;
         Timer::after(Duration::from_millis(10)).await;
     }
 }

@@ -18,6 +18,7 @@ use crate::{
     mk_static,
     networking::{HttpMethod, RequestType},
 };
+use shared::structs::AESCCM;
 
 #[embassy_executor::task]
 pub async fn run_dhcp(stack: Stack<'static>, gw_ip_addr: Ipv4Addr) {
@@ -141,7 +142,7 @@ pub async fn start_wifi(
 }
 const INDEX_HTML: &str = include_str!(concat!(env!("OUT_DIR"), "/generated_index.html"));
 #[embassy_executor::task]
-pub async fn handle_requests(stack: Stack<'static>, board: crate::util::Board) {
+pub async fn handle_requests(stack: Stack<'static>, board: crate::util::Board, mut aesccm: AESCCM) {
     #[allow(non_snake_case)]
     let PORT = option_env!("PORT")
         .and_then(|s| s.parse::<u16>().ok())
@@ -175,12 +176,19 @@ pub async fn handle_requests(stack: Stack<'static>, board: crate::util::Board) {
                 }
                 Ok(method) => match method {
                     RequestType::Upgrade(key) => {
-                        match crate::networking::approve_web_socket(&mut socket, key).await {
-                            Err(e) => println!("socket approval err: {:?}", e),
+                        match crate::networking::approve_ws(&mut socket, key).await {
+                            Err(e) => println!("ws approval err: {:?}", e),
                             Ok(()) => {
-                                println!("SOCKET APPROVED!");
-                                crate::networking::handle_ws(&mut socket, &mut led, &mut espnow)
-                                    .await;
+                                led.set_high();
+                                Timer::after(Duration::from_millis(30)).await;
+                                led.set_low();
+                                crate::networking::serve_ws(
+                                    &mut socket,
+                                    &mut led,
+                                    &mut espnow,
+                                    &mut aesccm,
+                                )
+                                .await;
                                 break;
                             }
                         }

@@ -1,0 +1,22 @@
+{
+    "lsp": {
+        "rust-analyzer": {
+            "initialization_options": {
+                "cargo": {
+                    "allTargets": false,
+                    "target": "riscv32imc-unknown-none-elf",
+                },
+                "check": {
+                    "overrideCommand": [
+                        "cargo",
+                        "check",
+                        "--target",
+                        "riscv32imc-unknown-none-elf",
+                        "--workspace",
+                        "--message-format=json",
+                    ],
+                },
+            },
+        },
+    },
+}

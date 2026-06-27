@@ -87,7 +87,7 @@ impl TryFrom<&str> for RequestType {
     }
 }
 use sha1::Digest;
-pub async fn approve_web_socket<const N: usize>(
+pub async fn approve_ws<const N: usize>(
     socket: &mut TcpSocket<'_>,
     key: heapless::String<N>,
 ) -> Result<(), NetworkingError> {
@@ -130,10 +130,15 @@ pub async fn approve_web_socket<const N: usize>(
     Ok(())
 }
 
-pub async fn handle_ws(
+use shared::{
+    enums::{Command, Component},
+    structs::{AESCCM, EspPayload},
+};
+pub async fn serve_ws(
     socket: &mut TcpSocket<'_>,
     led: &mut Output<'static>,
     espnow: &mut EspNow<'static>,
+    aesccm: &mut AESCCM,
 ) {
     let mut buf = [0u8; 1024];
     loop {
@@ -149,16 +154,39 @@ pub async fn handle_ws(
                     }
                     Ok(slice) => slice,
                 };
-                if content.starts_with("TOGGLE") {
-                    println!("TOGGLING LED");
+                if content.starts_with("Cmd: Tgl") {
                     led.toggle();
-                    let buf: [u8; 6] = [b'T', b'O', b'G', b'G', b'L', b'E'];
-                    match espnow.send_async(&BROADCAST_ADDRESS, &buf).await {
+                    let cmd = Command::Toggle(Component::Led(0));
+                    let esp_payload = EspPayload::new(cmd);
+                    println!("Before: {:?}", esp_payload);
+                    let encrypted = match aesccm.encrypt(esp_payload) {
+                        Err(e) => {
+                            println!("{:?}", e);
+                            continue;
+                        }
+                        Ok(data) => data,
+                    };
+                    println!("Encrypted: {:?}", encrypted);
+                    let decrypted = match aesccm.decrypt(encrypted) {
+                        Err(e) => {
+                            println!("decryption error {:?}", e);
+                            continue;
+                        }
+                        Ok(data) => data,
+                    };
+                    println!("Decrypted: {:?}", decrypted);
+                    continue;
+                    /*
+                    match espnow
+                        .send_async(&BROADCAST_ADDRESS, packet.inner.as_slice())
+                        .await
+                    {
                         Err(e) => println!("ESPNOW ERROR: {}", e),
                         Ok(()) => {}
                     }
+                     */
                 }
-                println!("{}", content);
+                println!("messgae: {}", content);
             }
             Err(e) => {
                 println!("{}", e);
