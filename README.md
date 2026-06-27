@@ -15,4 +15,4 @@
 ```
 
 > [Encryption]
->  Security Notice: Web traffic to the Access Point (AP) is encrypted via WPA2, and ESP-NOW packets are secured using AES-CCM.
+> Web traffic to the Access Point (AP) is encrypted via WPA2, and ESP-NOW packets are secured using AES-CCM.
