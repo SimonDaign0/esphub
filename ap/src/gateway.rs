@@ -18,7 +18,7 @@ use crate::{
     mk_static,
     networking::{HttpMethod, RequestType},
 };
-use shared::structs::AESCCM;
+use shared::aesccm::AESCCM;
 
 #[embassy_executor::task]
 pub async fn run_dhcp(stack: Stack<'static>, gw_ip_addr: Ipv4Addr) {
@@ -140,9 +140,14 @@ pub async fn start_wifi(
     let espnow = wifi_if.esp_now;
     (stack, espnow)
 }
+use esp_hal::aes::Aes;
 const INDEX_HTML: &str = include_str!(concat!(env!("OUT_DIR"), "/generated_index.html"));
 #[embassy_executor::task]
-pub async fn handle_requests(stack: Stack<'static>, board: crate::util::Board, mut aesccm: AESCCM) {
+pub async fn handle_requests(
+    stack: Stack<'static>,
+    board: crate::util::Board,
+    mut aesccm: AESCCM<Aes<'static>>,
+) {
     #[allow(non_snake_case)]
     let PORT = option_env!("PORT")
         .and_then(|s| s.parse::<u16>().ok())

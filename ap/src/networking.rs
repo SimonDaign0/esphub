@@ -1,4 +1,5 @@
 use embassy_net::tcp::TcpSocket;
+use esp_hal::aes::Operation::Decrypt;
 use esp_hal::gpio::Output;
 use esp_println::{self as _, println};
 use esp_radio::esp_now::BROADCAST_ADDRESS;
@@ -130,15 +131,16 @@ pub async fn approve_ws<const N: usize>(
     Ok(())
 }
 
+use esp_hal::aes::Aes;
 use shared::{
+    aesccm::{AESCCM, MacAddr, PacketData},
     enums::{Command, Component},
-    structs::{AESCCM, EspPayload},
 };
 pub async fn serve_ws(
     socket: &mut TcpSocket<'_>,
     led: &mut Output<'static>,
-    espnow: &mut EspNow<'static>,
-    aesccm: &mut AESCCM,
+    _espnow: &mut EspNow<'static>,
+    aesccm: &mut AESCCM<Aes<'static>>,
 ) {
     let mut buf = [0u8; 1024];
     loop {
@@ -154,39 +156,27 @@ pub async fn serve_ws(
                     }
                     Ok(slice) => slice,
                 };
-                if content.starts_with("Cmd: Tgl") {
-                    led.toggle();
-                    let cmd = Command::Toggle(Component::Led(0));
-                    let esp_payload = EspPayload::new(cmd);
-                    println!("Before: {:?}", esp_payload);
-                    let encrypted = match aesccm.encrypt(esp_payload) {
-                        Err(e) => {
-                            println!("{:?}", e);
-                            continue;
-                        }
-                        Ok(data) => data,
-                    };
-                    println!("Encrypted: {:?}", encrypted);
-                    let decrypted = match aesccm.decrypt(encrypted) {
-                        Err(e) => {
-                            println!("decryption error {:?}", e);
-                            continue;
-                        }
-                        Ok(data) => data,
-                    };
-                    println!("Decrypted: {:?}", decrypted);
-                    continue;
-                    /*
-                    match espnow
-                        .send_async(&BROADCAST_ADDRESS, packet.inner.as_slice())
-                        .await
-                    {
-                        Err(e) => println!("ESPNOW ERROR: {}", e),
-                        Ok(()) => {}
+                println!("content: {}", content);
+                led.toggle();
+                let cmd = Command::Toggle(Component::Led(0));
+                let packet_data = PacketData::new(MacAddr::default(), 0b00000000, cmd);
+                println!("Before: {:?}", packet_data);
+                let mut encrypted = match aesccm.encrypt(packet_data) {
+                    Err(e) => {
+                        println!("{:?}", e);
+                        continue;
                     }
-                     */
-                }
-                println!("messgae: {}", content);
+                    Ok(data) => data,
+                };
+                println!("Encrypted: {:?}", encrypted);
+                let decrypted = match aesccm.decrypt(&mut encrypted.inner) {
+                    Err(e) => {
+                        println!("decryption error {:?}", e);
+                        continue;
+                    }
+                    Ok(data) => data,
+                };
+                println!("Decrypted: {:?}", decrypted);
             }
             Err(e) => {
                 println!("{}", e);

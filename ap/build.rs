@@ -84,11 +84,13 @@ fn generate_pages() {
             .replace("/*JS_PLACEHOLDER*/", js)
             .as_str(),
     );
+    println!("update cargo ");
 
     let out_dir = std::env::var("OUT_DIR").expect("Missing builds.rs");
     let cur_dir = std::env::current_dir().expect("Cur dir error");
-    let other_path = Path::new(&cur_dir).join("src/pages/generated_index.html");
+    let preview = Path::new(&cur_dir).join("src/pages/generated_index.html");
     let dest_path = Path::new(&out_dir).join("generated_index.html");
+
     fs::write(&dest_path, &merged).expect("Error generating index");
-    fs::write(other_path, merged).expect("Error generating index in pages dir");
+    fs::write(preview, merged).expect("Error generating index in pages dir");
 }

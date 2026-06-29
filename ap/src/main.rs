@@ -26,7 +26,7 @@ use esp_hal::{
 };
 extern crate alloc;
 use esp_hal::aes::Aes;
-use shared::structs::AESCCM;
+use shared::aesccm::AESCCM;
 #[esp_rtos::main]
 async fn main(spawner: Spawner) -> ! {
     //init configs

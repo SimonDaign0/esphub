@@ -40,7 +40,7 @@ recon.addEventListener("click", () => reconnect());
 function send() {
     try {
         if (ws.readyState === WebSocket.OPEN) {
-            ws.send("TOGGLE: Custom msg over websocket!");
+            ws.send("Cmd: Tgl, with extra");
         }
     } catch (err) {
         console.error(err);
