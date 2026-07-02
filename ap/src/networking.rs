@@ -12,9 +12,9 @@ pub enum NetworkingError {
     UpgradeRequestFailed(embassy_net::tcp::Error),
     BufferOverflow,
 }
+use crate::encrypting::AesHal;
 use base64::Engine;
 use embedded_io_async::Write;
-
 #[derive(Debug, PartialEq, Eq)]
 pub enum HttpMethod {
     Get,
@@ -88,7 +88,6 @@ impl TryFrom<&str> for RequestType {
 }
 use mcu_comms::Deserialize;
 use mcu_comms::Serialize;
-use mcu_comms::aesccm::Encrypt;
 use sha1::Digest;
 pub async fn approve_ws<const N: usize>(
     socket: &mut TcpSocket<'_>,
@@ -144,11 +143,11 @@ enum Component {
 }
 
 use mcu_comms::aesccm::{AESCCM, MacAddr, PacketData, PacketView};
-pub async fn serve_ws<T: Encrypt>(
+pub async fn serve_ws(
     socket: &mut TcpSocket<'_>,
     led: &mut Output<'static>,
     _espnow: &mut EspNow<'static>,
-    aesccm: &mut AESCCM<T>,
+    aesccm: &mut AESCCM<AesHal>,
 ) {
     let mut buf = [0u8; 1024];
 
@@ -165,7 +164,7 @@ pub async fn serve_ws<T: Encrypt>(
                     }
                     Ok(slice) => slice,
                 };
-                println!("content: {}", content);
+                // This is where you cure the data
                 led.toggle();
                 let packet_data = PacketData::new(
                     MacAddr::default(),
