@@ -1585,12 +1585,25 @@ dependencies = [
 
 [[package]]
 name = "mcu-comms"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f89c066f73ec8a802bb37208067f2e57d5116270bbbd4d2d9c6ecae65431ed1b"
+checksum = "0bf3edce5dc50b2114f0d3fec516fe9368bd441479551f3079b90e8b0c5bf8e4"
 dependencies = [
+ "mcu-comms-macros",
  "postcard",
  "serde",
+]
+
+[[package]]
+name = "mcu-comms-macros"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43855f7c3a17b514107602a82ff996db6b8b9a929636c9fbf35d30dca60a4125"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde",
+ "syn 2.0.118",
 ]
 
 [[package]]

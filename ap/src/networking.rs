@@ -86,8 +86,7 @@ impl TryFrom<&str> for RequestType {
         }
     }
 }
-use mcu_comms::Deserialize;
-use mcu_comms::Serialize;
+
 use sha1::Digest;
 pub async fn approve_ws<const N: usize>(
     socket: &mut TcpSocket<'_>,
@@ -132,12 +131,15 @@ pub async fn approve_ws<const N: usize>(
     Ok(())
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+use mcu_comms::prelude::*;
+#[derive(Debug)]
+#[payload]
 enum Command {
     On(Component),
     Off(Component),
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
+#[payload]
 enum Component {
     Led(u8),
 }
@@ -179,6 +181,11 @@ pub async fn serve_ws(
                     }
                     Ok(data) => data,
                 };
+                let packetview = PacketView::try_from(encrypted.bytes()).unwrap();
+                let mac = packetview.mac();
+
+                println!("dest mac addr: {:?}", mac);
+
                 let decrypted = match aesccm.decrypt::<Command>(&mut encrypted.bytes_mut()) {
                     Err(e) => {
                         println!("decryption error {:?}", e);
