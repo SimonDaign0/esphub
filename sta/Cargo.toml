@@ -66,7 +66,6 @@ smoltcp = { version = "0.13.0", default-features = false, features = [
 critical-section = "1.2.0"
 static_cell      = "2.1.1"
 
-
 # For fine tuning these settings, please refer to https://doc.rust-lang.org/cargo/reference/profiles.html
 [profile.dev]
 # The default debug profile is too slow and too big for resource-constrained devices.

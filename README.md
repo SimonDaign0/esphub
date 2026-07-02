@@ -14,5 +14,5 @@
 [ Station 1 ] [ Station 2 ] [ Station N ]
 ```
 
-> [!IMPORTANT]
-> **Security Notice:** As of the current version, **no data encryption** has been implemented. This project is currently intended for development and testing.
+> [Encryption]
+> Web traffic to the Access Point (AP) is encrypted via WPA2, and ESP-NOW packets are secured using AES-CCM.

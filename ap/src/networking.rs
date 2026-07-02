@@ -1,5 +1,4 @@
 use embassy_net::tcp::TcpSocket;
-use esp_hal::aes::Operation::Decrypt;
 use esp_hal::gpio::Output;
 use esp_println::{self as _, println};
 use esp_radio::esp_now::BROADCAST_ADDRESS;
@@ -87,6 +86,9 @@ impl TryFrom<&str> for RequestType {
         }
     }
 }
+use mcu_comms::Deserialize;
+use mcu_comms::Serialize;
+use mcu_comms::aesccm::Encrypt;
 use sha1::Digest;
 pub async fn approve_ws<const N: usize>(
     socket: &mut TcpSocket<'_>,
@@ -131,18 +133,25 @@ pub async fn approve_ws<const N: usize>(
     Ok(())
 }
 
-use esp_hal::aes::Aes;
-use shared::{
-    aesccm::{AESCCM, MacAddr, PacketData},
-    enums::{Command, Component},
-};
-pub async fn serve_ws(
+#[derive(Debug, Serialize, Deserialize)]
+enum Command {
+    On(Component),
+    Off(Component),
+}
+#[derive(Debug, Serialize, Deserialize)]
+enum Component {
+    Led(u8),
+}
+
+use mcu_comms::aesccm::{AESCCM, MacAddr, PacketData, PacketView};
+pub async fn serve_ws<T: Encrypt>(
     socket: &mut TcpSocket<'_>,
     led: &mut Output<'static>,
     _espnow: &mut EspNow<'static>,
-    aesccm: &mut AESCCM<Aes<'static>>,
+    aesccm: &mut AESCCM<T>,
 ) {
     let mut buf = [0u8; 1024];
+
     loop {
         match socket.read(&mut buf).await {
             Ok(0) => {
@@ -158,18 +167,20 @@ pub async fn serve_ws(
                 };
                 println!("content: {}", content);
                 led.toggle();
-                let cmd = Command::Toggle(Component::Led(0));
-                let packet_data = PacketData::new(MacAddr::default(), 0b00000000, cmd);
+                let packet_data = PacketData::new(
+                    MacAddr::default(),
+                    0b00000000,
+                    Command::On(Component::Led(0)),
+                );
                 println!("Before: {:?}", packet_data);
-                let mut encrypted = match aesccm.encrypt(packet_data) {
+                let mut encrypted = match aesccm.encrypt(&packet_data) {
                     Err(e) => {
                         println!("{:?}", e);
                         continue;
                     }
                     Ok(data) => data,
                 };
-                println!("Encrypted: {:?}", encrypted);
-                let decrypted = match aesccm.decrypt(&mut encrypted.inner) {
+                let decrypted = match aesccm.decrypt::<Command>(&mut encrypted.bytes_mut()) {
                     Err(e) => {
                         println!("decryption error {:?}", e);
                         continue;

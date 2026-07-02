@@ -26,7 +26,8 @@ use esp_hal::{
 };
 extern crate alloc;
 use esp_hal::aes::Aes;
-use shared::aesccm::AESCCM;
+use lib::encrypting::AesHal;
+use mcu_comms::aesccm::AESCCM;
 #[esp_rtos::main]
 async fn main(spawner: Spawner) -> ! {
     //init configs
@@ -41,7 +42,8 @@ async fn main(spawner: Spawner) -> ! {
             0x72, 0x08, 0xe0, 0xeb, 0x70, 0xb1, 0xa8, 0x87, 0x29, 0x9f, 0x66, 0x94, 0xe9, 0x12,
             0x4d, 0xc1,
         ]);
-    let aesccm = AESCCM::new(Aes::new(peripherals.AES), aes_key);
+    let aeshal = AesHal(Aes::new(peripherals.AES));
+    let aesccm = AESCCM::new(aeshal, aes_key);
     //
     let (stack, espnow) = lib::gateway::start_wifi(peripherals.WIFI, rng, &spawner).await;
 
